@@ -33,6 +33,13 @@
         android:layout_alignParentStart="true"
         android:layout_marginStart="57dp" />
 
+    <com.google.android.material.slider.Slider
+        android:id="@+id/zoomSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:value="0"
+        android:min="0"
+        android:max="100" />
     <Chronometer
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

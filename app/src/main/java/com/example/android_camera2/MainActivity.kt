@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
 import android.graphics.Matrix
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraAccessException
@@ -40,6 +41,7 @@ import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.slider.Slider
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -206,6 +208,7 @@ class MainActivity : AppCompatActivity() {
     private var mCaptureRequestBuilder: CaptureRequest.Builder? = null
     private var mRecordImageButton: ImageButton? = null
     private var mStillImageButton: ImageButton? = null
+    private var zoomSlider: Slider? = null
     private var mIsRecording = false
     private var mIsTimelapse = false
     private var mVideoFolder: File? = null
@@ -268,13 +271,55 @@ override fun onCreate(savedInstanceState: Bundle?) {
     setContentView(R.layout.activity_main)
     createImageFolder()
 
+    zoomSlider = findViewById<Slider>(R.id.zoomSlider)
     mChronometer = findViewById<View>(R.id.chronometer) as Chronometer
     mTextureView = findViewById<View>(R.id.textureView) as TextureView
     mStillImageButton = findViewById<View>(R.id.cameraImageButton2) as ImageButton
     mStillImageButton!!.setOnClickListener {
         lockFocus()
     }
+    zoomSlider?.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+        override fun onStartTrackingTouch(slider: Slider) {
+            // Handle touch start
+        }
+
+        override fun onStopTrackingTouch(slider: Slider) {
+            // Handle touch stop
+        }
+    })
+
+    zoomSlider?.addOnChangeListener { slider, value, fromUser ->
+        if (fromUser) {
+            // Handle zoom level change
+            val zoomLevel = value // This value represents the zoom level (e.g., 1.0 for no zoom)
+            updateZoom(zoomLevel)
+        }
+    }
 }
+
+    private fun updateZoom(zoomLevel: Float) {
+        try {
+            val maxZoom = cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)
+            val minZoom = 1.0f
+            val currentZoom = minZoom + ((maxZoom?.minus(minZoom))?.times(zoomLevel) ?: 0f )
+
+            mCaptureRequestBuilder?.set(CaptureRequest.SCALER_CROP_REGION, getZoomRect(currentZoom))
+            mCaptureRequestBuilder?.build()
+                ?.let { mPreviewCaptureSession?.setRepeatingRequest(it, null, null) }
+        } catch (e: CameraAccessException) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun getZoomRect(zoomLevel: Float): Rect {
+        val rect = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+        val minWidth = (rect!!.width() / zoomLevel).toInt()
+        val minHeight = (rect.height() / zoomLevel).toInt()
+        val diffWidth = rect.width() - minWidth
+        val diffHeight = rect.height() - minHeight
+
+        return Rect(diffWidth / 2, diffHeight / 2, rect.width() - diffWidth / 2, rect.height() - diffHeight / 2)
+    }
 
     override fun onResume() {
         super.onResume()
@@ -539,48 +584,6 @@ override fun onCreate(savedInstanceState: Bundle?) {
         }
     }
 
-//    private fun startStillCaptureRequest() {
-//        try {
-//            mCaptureRequestBuilder = if (mIsRecording) {
-//                mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_VIDEO_SNAPSHOT)
-//            } else {
-//                mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-//            }
-//            mCaptureRequestBuilder!!.addTarget(mImageReader!!.surface)
-//            mCaptureRequestBuilder!!.set(CaptureRequest.JPEG_ORIENTATION, mTotalRotation)
-//            val stillCaptureCallback: CaptureCallback = object : CaptureCallback() {
-//                override fun onCaptureStarted(
-//                    session: CameraCaptureSession,
-//                    request: CaptureRequest,
-//                    timestamp: Long,
-//                    frameNumber: Long
-//                ) {
-//                    super.onCaptureStarted(session, request, timestamp, frameNumber)
-//                    try {
-//                        createImageFileName()
-//                        Log.d("Camera Path:",createImageFileName().toString())
-//                    } catch (e: IOException) {
-//                        e.printStackTrace()
-//                    }
-//                }
-//            }
-//            if (mIsRecording) {
-//                mRecordCaptureSession!!.capture(
-//                    mCaptureRequestBuilder!!.build(),
-//                    stillCaptureCallback,
-//                    null
-//                )
-//            } else {
-//                mPreviewCaptureSession!!.capture(
-//                    mCaptureRequestBuilder!!.build(),
-//                    stillCaptureCallback,
-//                    null
-//                )
-//            }
-//        } catch (e: CameraAccessException) {
-//            e.printStackTrace()
-//        }
-//    }
 private fun startStillCaptureRequest() {
     try {
         mCaptureRequestBuilder = if (mIsRecording) {
