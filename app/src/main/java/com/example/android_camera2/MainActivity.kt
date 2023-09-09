@@ -38,6 +38,7 @@ import android.view.TextureView.SurfaceTextureListener
 import android.view.View
 import android.widget.Chronometer
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -47,19 +48,17 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Arrays
-import java.util.Collections
 import java.util.Date
 
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var cameraCharacteristics:CameraCharacteristics
+    private lateinit var cameraCharacteristics: CameraCharacteristics
     private var mCaptureState = STATE_PREVIEW
+    var currentZoom:Float?=null
     private var mTextureView: TextureView? = null
     private val mSurfaceTextureListener: SurfaceTextureListener = object : SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-            setupCamera(width, height)
-            connectCamera()
-            transformImage(width,height)
+
         }
 
         override fun onSurfaceTextureSizeChanged(
@@ -67,6 +66,9 @@ class MainActivity : AppCompatActivity() {
             width: Int,
             height: Int
         ) {
+            setupCamera(width, height)
+            connectCamera()
+            transformImage(width, height)
         }
 
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
@@ -116,6 +118,8 @@ class MainActivity : AppCompatActivity() {
     private var mCameraId: String? = null
     private var mPreviewSize: Size? = null
     private var mVideoSize: Size? = null
+    var wideAngleCameraId: String? = null
+    var mainCameraId: String? = null
     private var mImageSize: Size? = null
     private var mImageReader: ImageReader? = null
     private val mOnImageAvailableListener =
@@ -144,12 +148,20 @@ class MainActivity : AppCompatActivity() {
                         e.printStackTrace()
                     }
                 }
+                runOnUiThread {
+                    val imageFile = File(mImageFileName)
+                    if (imageFile.exists()) {
+                        val imageUri = Uri.fromFile(imageFile)
+                        imageSet?.setImageURI(imageUri)
+                    }
+                }
             }
         }
     }
 
     private var mMediaRecorder: MediaRecorder? = null
     private var mChronometer: Chronometer? = null
+    private var imageSet: ImageView? = null
     private var mTotalRotation = 0
     private var mPreviewCaptureSession: CameraCaptureSession? = null
     private val mPreviewCaptureCallback: CaptureCallback = object : CaptureCallback() {
@@ -222,90 +234,64 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        setContentView(R.layout.activity_main)
-//        createVideoFolder()
-//        createImageFolder()
-//        mChronometer = findViewById<View>(R.id.chronometer) as Chronometer
-//        mTextureView = findViewById<View>(R.id.textureView) as TextureView
-//        mStillImageButton = findViewById<View>(R.id.cameraImageButton2) as ImageButton
-//        mStillImageButton!!.setOnClickListener {
-//            if (!(mIsTimelapse || mIsRecording)) {
-//                checkWriteStoragePermission()
-//            }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        createImageFolder()
+
+        zoomSlider = findViewById<Slider>(R.id.zoomSlider)
+        imageSet = findViewById<ImageView>(R.id.setImage)
+        mChronometer = findViewById<View>(R.id.chronometer) as Chronometer
+        mTextureView = findViewById<View>(R.id.textureView) as TextureView
+        mStillImageButton = findViewById<View>(R.id.cameraImageButton2) as ImageButton
+        mStillImageButton!!.setOnClickListener {
+            checkWriteStoragePermission()
 //            lockFocus()
-//        }
-//        mRecordImageButton = findViewById<View>(R.id.videoOnlineImageButton) as ImageButton
-//        mRecordImageButton!!.setOnClickListener {
-//            if (mIsRecording || mIsTimelapse) {
-//                mChronometer!!.stop()
-//                mChronometer!!.visibility = View.INVISIBLE
-//                mIsRecording = false
-//                mIsTimelapse = false
-//                mRecordImageButton!!.setImageResource(R.mipmap.btn_video_online)
-//
-//                // Starting the preview prior to stopping recording which should hopefully
-//                // resolve issues being seen in Samsung devices.
-//                startPreview()
-//                mMediaRecorder!!.stop()
-//                mMediaRecorder!!.reset()
-//                val mediaStoreUpdateIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-//                mediaStoreUpdateIntent.data = Uri.fromFile(File(mVideoFileName))
-//                sendBroadcast(mediaStoreUpdateIntent)
-//            } else {
-//                mIsRecording = true
-//                mRecordImageButton!!.setImageResource(R.mipmap.btn_video_busy)
-//                checkWriteStoragePermission()
-//            }
-//        }
-//        mRecordImageButton!!.setOnLongClickListener {
-//            mIsTimelapse = true
-//            mRecordImageButton!!.setImageResource(R.mipmap.btn_timelapse)
-//            checkWriteStoragePermission()
-//            true
-//        }
-//    }
-override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_main)
-    createImageFolder()
-
-    zoomSlider = findViewById<Slider>(R.id.zoomSlider)
-    mChronometer = findViewById<View>(R.id.chronometer) as Chronometer
-    mTextureView = findViewById<View>(R.id.textureView) as TextureView
-    mStillImageButton = findViewById<View>(R.id.cameraImageButton2) as ImageButton
-    mStillImageButton!!.setOnClickListener {
-        lockFocus()
-    }
-    zoomSlider?.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
-        override fun onStartTrackingTouch(slider: Slider) {
-            // Handle touch start
         }
+        zoomSlider?.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: Slider) {
+                // Handle touch start
+            }
 
-        override fun onStopTrackingTouch(slider: Slider) {
-            // Handle touch stop
-        }
-    })
+            override fun onStopTrackingTouch(slider: Slider) {
+                // Handle touch stop
+            }
+        })
 
-    zoomSlider?.addOnChangeListener { slider, value, fromUser ->
-        if (fromUser) {
-            // Handle zoom level change
-            val zoomLevel = value // This value represents the zoom level (e.g., 1.0 for no zoom)
-            updateZoom(zoomLevel)
+        zoomSlider?.addOnChangeListener { slider, value, fromUser ->
+            if (fromUser) {
+                // Handle zoom level change
+                val zoomLevel = value // This value represents the zoom level (e.g., 1.0 for no zoom)
+                updateZoom(zoomLevel)
+            }
         }
     }
-}
 
     private fun updateZoom(zoomLevel: Float) {
         try {
             val maxZoom = cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)
             val minZoom = 1.0f
-            val currentZoom = minZoom + ((maxZoom?.minus(minZoom))?.times(zoomLevel) ?: 0f )
+            currentZoom = minZoom + ((maxZoom?.minus(minZoom))?.times(zoomLevel) ?: 0f)
 
-            mCaptureRequestBuilder?.set(CaptureRequest.SCALER_CROP_REGION, getZoomRect(currentZoom))
-            mCaptureRequestBuilder?.build()
-                ?.let { mPreviewCaptureSession?.setRepeatingRequest(it, null, null) }
+            if (wideAngleCameraId != "0" && wideAngleCameraId != null && mainCameraId != null) {
+                if (currentZoom!! >= 1.0f && currentZoom!! < 2.0f && mCameraId != wideAngleCameraId) {
+                    // Switch to wide-angle camera
+                    mCameraId = wideAngleCameraId
+                    // Close and reopen the camera to apply the change
+                    closeCamera()
+                    connectCamera()
+                } else if (currentZoom!! >= 2.0f && mCameraId != mainCameraId) {
+                    // Switch to main camera
+                    mCameraId = mainCameraId
+                    // Close and reopen the camera to apply the change
+                    closeCamera()
+                    connectCamera()
+                }
+            }
+
+            mCaptureRequestBuilder?.set(CaptureRequest.SCALER_CROP_REGION, getZoomRect(currentZoom!!))
+            mCaptureRequestBuilder?.build()?.let { mPreviewCaptureSession?.setRepeatingRequest(it, null, null) }
+
         } catch (e: CameraAccessException) {
             e.printStackTrace()
         }
@@ -318,7 +304,12 @@ override fun onCreate(savedInstanceState: Bundle?) {
         val diffWidth = rect.width() - minWidth
         val diffHeight = rect.height() - minHeight
 
-        return Rect(diffWidth / 2, diffHeight / 2, rect.width() - diffWidth / 2, rect.height() - diffHeight / 2)
+        return Rect(
+            diffWidth / 2,
+            diffHeight / 2,
+            rect.width() - diffWidth / 2,
+            rect.height() - diffHeight / 2
+        )
     }
 
     override fun onResume() {
@@ -327,7 +318,7 @@ override fun onCreate(savedInstanceState: Bundle?) {
         if (mTextureView!!.isAvailable) {
             setupCamera(mTextureView!!.width, mTextureView!!.height)
             connectCamera()
-            transformImage(mTextureView!!.width,mTextureView!!.height)
+            transformImage(mTextureView!!.width, mTextureView!!.height)
         } else {
             mTextureView!!.surfaceTextureListener = mSurfaceTextureListener
         }
@@ -394,12 +385,44 @@ override fun onCreate(savedInstanceState: Bundle?) {
     private fun setupCamera(width: Int, height: Int) {
         val cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
         try {
+
+
             for (cameraId in cameraManager.cameraIdList) {
                 cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
-                if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
-                    CameraCharacteristics.LENS_FACING_FRONT
-                ) {
-                    continue
+                val lensFacing = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING)
+
+//                val fov: Float? = cameraCharacteristics.get(CameraCharacteristics.FIELD_OF_VIEW)
+
+                // Check if the camera is a wide angle camera.
+
+                // Check if the camera is a wide angle camera.
+//                if (lensFacing === CameraCharacteristics.LENS_FACING_BACK && fov > 90) {
+//                    Log.d("MyApp", "Camera $cameraId is a wide angle camera")
+//                }
+
+                if (lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
+                    if (wideAngleCameraId == null) {
+                        // First back-facing camera encountered will be considered wide-angle
+                        wideAngleCameraId = cameraId
+                    } else {
+                        // Second back-facing camera encountered will be considered the main camera
+                        mainCameraId = cameraId
+                        break
+                    }
+                }
+//                if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
+//                    CameraCharacteristics.LENS_FACING_FRONT
+//                ) {
+//                    continue
+//                }
+                if (wideAngleCameraId != null) {
+                    // Set the wide-angle camera as the default camera
+                    mCameraId = wideAngleCameraId
+                } else if (mainCameraId != null) {
+                    // If no wide-angle camera is found, use the main camera
+                    mCameraId = mainCameraId
+                } else {
+                    // Handle the case when no back-facing cameras are available
                 }
                 val map =
                     cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
@@ -415,7 +438,7 @@ override fun onCreate(savedInstanceState: Bundle?) {
                 mPreviewSize = chooseOptimalSize(
                     map!!.getOutputSizes(
                         SurfaceTexture::class.java
-                    ), rotatedWidth, rotatedHeight,4,3
+                    ), rotatedWidth, rotatedHeight, 4, 3
                 )
 //                mVideoSize = chooseOptimalSize(
 //                    map.getOutputSizes(
@@ -425,7 +448,7 @@ override fun onCreate(savedInstanceState: Bundle?) {
                 mImageSize = chooseOptimalSize(
                     map.getOutputSizes(ImageFormat.JPEG),
                     rotatedWidth,
-                    rotatedHeight,4,3
+                    rotatedHeight, 4, 3
                 )
                 mImageReader = ImageReader.newInstance(
                     mImageSize!!.width,
@@ -471,7 +494,6 @@ override fun onCreate(savedInstanceState: Bundle?) {
         }
         mTextureView!!.setTransform(matrix)
     }
-
 
 
     private fun connectCamera() {
@@ -565,6 +587,8 @@ override fun onCreate(savedInstanceState: Bundle?) {
                         Log.d(TAG, "onConfigured: startPreview")
                         mPreviewCaptureSession = session
                         try {
+//                            mCaptureRequestBuilder?.set(CaptureRequest.SCALER_CROP_REGION,
+//                                currentZoom?.let { getZoomRect(it) })
                             mPreviewCaptureSession!!.setRepeatingRequest(
                                 mCaptureRequestBuilder!!.build(),
                                 null, mBackgroundHandler
@@ -584,61 +608,68 @@ override fun onCreate(savedInstanceState: Bundle?) {
         }
     }
 
-private fun startStillCaptureRequest() {
-    try {
-        mCaptureRequestBuilder = if (mIsRecording) {
-            mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_VIDEO_SNAPSHOT)
-        } else {
-            mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-        }
+    private fun startStillCaptureRequest() {
+        try {
+            mCaptureRequestBuilder = if (mIsRecording) {
+                mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_VIDEO_SNAPSHOT)
+            } else {
+                mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+            }
 
-        // Calculate the total rotation taking into account device and sensor orientation
-        val deviceOrientation = windowManager.defaultDisplay.rotation
-        val sensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
-        val totalRotation = sensorOrientation?.let { sensorToDeviceRotation(it, deviceOrientation) }
+            // Calculate the total rotation taking into account device and sensor orientation
+            val deviceOrientation = windowManager.defaultDisplay.rotation
+            val sensorOrientation =
+                cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
+            val totalRotation =
+                sensorOrientation?.let { sensorToDeviceRotation(it, deviceOrientation) }
 
-        mCaptureRequestBuilder!!.addTarget(mImageReader!!.surface)
-        mCaptureRequestBuilder!!.set(CaptureRequest.JPEG_ORIENTATION, totalRotation)
+            mCaptureRequestBuilder!!.addTarget(mImageReader!!.surface)
+            mCaptureRequestBuilder!!.set(CaptureRequest.JPEG_ORIENTATION, totalRotation)
+            // Pass the current zoom level to the ImageSaver
 
-        val stillCaptureCallback: CaptureCallback = object : CaptureCallback() {
-            override fun onCaptureStarted(
-                session: CameraCaptureSession,
-                request: CaptureRequest,
-                timestamp: Long,
-                frameNumber: Long
-            ) {
-                super.onCaptureStarted(session, request, timestamp, frameNumber)
-                try {
-                    createImageFileName()
-                    Log.d("Camera Path:", createImageFileName().toString())
-                } catch (e: IOException) {
-                    e.printStackTrace()
+            val stillCaptureCallback: CaptureCallback = object : CaptureCallback() {
+                override fun onCaptureStarted(
+                    session: CameraCaptureSession,
+                    request: CaptureRequest,
+                    timestamp: Long,
+                    frameNumber: Long
+                ) {
+                    super.onCaptureStarted(session, request, timestamp, frameNumber)
+                    try {
+                        createImageFileName()
+
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    }
                 }
             }
-        }
 
-        if (mIsRecording) {
-            mRecordCaptureSession!!.capture(
-                mCaptureRequestBuilder!!.build(),
-                stillCaptureCallback,
-                null
-            )
-        } else {
-            mPreviewCaptureSession!!.capture(
-                mCaptureRequestBuilder!!.build(),
-                stillCaptureCallback,
-                null
-            )
+            if (mIsRecording) {
+                mRecordCaptureSession!!.capture(
+                    mCaptureRequestBuilder!!.build(),
+                    stillCaptureCallback,
+                    null
+                )
+            } else {
+                mCaptureRequestBuilder?.set(CaptureRequest.SCALER_CROP_REGION,
+                    currentZoom?.let { getZoomRect(it) })
+
+                mPreviewCaptureSession!!.capture(
+                    mCaptureRequestBuilder!!.build(),
+                    stillCaptureCallback,
+                    null
+                )
+            }
+        } catch (e: CameraAccessException) {
+            e.printStackTrace()
         }
-    } catch (e: CameraAccessException) {
-        e.printStackTrace()
     }
-}
 
     private fun sensorToDeviceRotation(sensorOrientation: Int, deviceOrientation: Int): Int {
         // Calculate the total rotation needed to transform sensor data to device orientation
         return (sensorOrientation + deviceOrientation + 360) % 360
     }
+
     private fun closeCamera() {
         if (mCameraDevice != null) {
             mCameraDevice!!.close()
@@ -702,78 +733,37 @@ private fun startStillCaptureRequest() {
         return imageFile
     }
 
-//    private fun checkWriteStoragePermission() {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-//                == PackageManager.PERMISSION_GRANTED
-//            ) {
-//                try {
-//                    createVideoFileName()
-//                } catch (e: IOException) {
-//                    e.printStackTrace()
-//                }
-//                if (mIsTimelapse || mIsRecording) {
-//                    startRecord()
-//                    mMediaRecorder!!.start()
-//                    mChronometer!!.base = SystemClock.elapsedRealtime()
-//                    mChronometer!!.visibility = View.VISIBLE
-//                    mChronometer!!.start()
-//                }
-//            } else {
-//                if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-//                    Toast.makeText(this, "app needs to be able to save videos", Toast.LENGTH_SHORT)
-//                        .show()
-//                }
-//                requestPermissions(
-//                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-//                    REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT
-//                )
-//            }
-//        } else {
-//            try {
-//                createVideoFileName()
-//            } catch (e: IOException) {
-//                e.printStackTrace()
-//            }
-//            if (mIsRecording || mIsTimelapse) {
-//                startRecord()
-//                mMediaRecorder!!.start()
-//                mChronometer!!.base = SystemClock.elapsedRealtime()
-//                mChronometer!!.visibility = View.VISIBLE
-//                mChronometer!!.start()
-//            }
-//        }
-//    }
-private fun checkWriteStoragePermission() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
+
+    private fun checkWriteStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED
+            ) {
+                try {
+                    createImageFileName()
+                    startStillCaptureRequest()
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                }
+            } else {
+                if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    Toast.makeText(this, "App needs to be able to save images", Toast.LENGTH_SHORT)
+                        .show()
+                }
+                requestPermissions(
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT
+                )
+            }
+        } else {
             try {
                 createImageFileName()
                 startStillCaptureRequest()
             } catch (e: IOException) {
                 e.printStackTrace()
             }
-        } else {
-            if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                Toast.makeText(this, "App needs to be able to save images", Toast.LENGTH_SHORT)
-                    .show()
-            }
-            requestPermissions(
-                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT
-            )
-        }
-    } else {
-        try {
-            createImageFileName()
-            startStillCaptureRequest()
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
     }
-}
 
     @Throws(IOException::class)
     private fun setupMediaRecorder() {
@@ -851,43 +841,30 @@ private fun checkWriteStoragePermission() {
             return (sensorOrienatation + deviceOrientation + 360) % 360
         }
 
-//        private fun chooseOptimalSize(choices: Array<Size>, width: Int, height: Int): Size {
-//            val bigEnough: MutableList<Size> = ArrayList()
-//            for (option in choices) {
-//                if (option.height == option.width * height / width && option.width >= width && option.height >= height) {
-//                    bigEnough.add(option)
-//                }
-//            }
-//            return if (bigEnough.size > 0) {
-//                Collections.min(bigEnough, CompareSizeByArea())
-//            } else {
-//                choices[0]
-//            }
-//        }
-private fun chooseOptimalSize(
-    choices: Array<Size>,
-    width: Int,
-    height: Int,
-    aspectRatioWidth: Int,
-    aspectRatioHeight: Int
-): Size {
-    val desiredAspectRatio = aspectRatioWidth.toFloat() / aspectRatioHeight.toFloat()
-    var optimalSize: Size? = null
-    var minAspectRatioDiff = Float.MAX_VALUE
+        private fun chooseOptimalSize(
+            choices: Array<Size>,
+            width: Int,
+            height: Int,
+            aspectRatioWidth: Int,
+            aspectRatioHeight: Int
+        ): Size {
+            val desiredAspectRatio = aspectRatioWidth.toFloat() / aspectRatioHeight.toFloat()
+            var optimalSize: Size? = null
+            var minAspectRatioDiff = Float.MAX_VALUE
 
-    for (size in choices) {
-        val currentAspectRatio = size.width.toFloat() / size.height.toFloat()
-        val aspectRatioDiff = Math.abs(currentAspectRatio - desiredAspectRatio)
+            for (size in choices) {
+                val currentAspectRatio = size.width.toFloat() / size.height.toFloat()
+                val aspectRatioDiff = Math.abs(currentAspectRatio - desiredAspectRatio)
 
-        // Check if the aspect ratio is closer to the desired one
-        if (aspectRatioDiff < minAspectRatioDiff) {
-            optimalSize = size
-            minAspectRatioDiff = aspectRatioDiff
+                // Check if the aspect ratio is closer to the desired one
+                if (aspectRatioDiff < minAspectRatioDiff) {
+                    optimalSize = size
+                    minAspectRatioDiff = aspectRatioDiff
+                }
+            }
+
+            return optimalSize ?: choices[0] // Return the default size if no match is found
         }
-    }
-
-    return optimalSize ?: choices[0] // Return the default size if no match is found
-}
 
     }
 }

@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".MainActivity">
 
     <TextureView
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="match_parent"
+        app:layout_constraintDimensionRatio="1.5"
         android:id="@+id/textureView"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
 
     <ImageButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/videoOnlineImageButton"
+        android:visibility="gone"
         android:contentDescription="Video Button"
         android:src="@mipmap/btn_video_online"
-        android:layout_marginBottom="36dp"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginEnd="49dp" />
 
     <ImageButton
@@ -29,24 +33,37 @@
         android:id="@+id/cameraImageButton2"
         android:contentDescription="Camera Button"
         android:src="@mipmap/btn_camera"
-        android:layout_alignTop="@+id/videoOnlineImageButton"
-        android:layout_alignParentStart="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginStart="57dp" />
 
     <com.google.android.material.slider.Slider
         android:id="@+id/zoomSlider"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         android:value="0"
         android:min="0"
         android:max="100" />
+    <ImageView
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:id="@+id/setImage"
+        android:textColor="#ff0000"
+        app:layout_constraintBottom_toTopOf="@id/cameraImageButton2"
+        app:layout_constraintStart_toStartOf="@id/cameraImageButton2" />
     <Chronometer
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/chronometer"
+        android:visibility="gone"
         android:textColor="#ff0000"
         android:textSize="25dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         android:layout_above="@+id/videoOnlineImageButton"
         android:layout_alignStart="@+id/videoOnlineImageButton" />
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
